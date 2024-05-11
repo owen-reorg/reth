@@ -620,7 +620,7 @@ const RNG_COOKED: [i64; RNG_LEN] = [
 ];
 
 /// seed rng x[n+1] = 48271 * x[n] mod (2**31 - 1)
-pub fn seed_rand(mut x: i32) -> i32 {
+pub(crate) fn seed_rand(mut x: i32) -> i32 {
     const A: i32 = 48271;
     const Q: i32 = 44488;
     const R: i32 = 3399;

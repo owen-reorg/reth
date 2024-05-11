@@ -11,23 +11,23 @@ use std::str::FromStr;
 
 lazy_static! {
     // preset contracts
-    pub static ref VALIDATOR_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001000").unwrap();
-    pub static ref SLASH_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001001").unwrap();
-    pub static ref SYSTEM_REWARD_CONTRACT: Address = Address::from_str("0000000000000000000000000000000000001002").unwrap();
-    pub static ref LIGHT_CLIENT_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001003").unwrap();
-    pub static ref TOKEN_HUB_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001004").unwrap();
-    pub static ref RELAYER_INCENTIVIZE_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001005").unwrap();
-    pub static ref RELAYER_HUB_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001006").unwrap();
-    pub static ref GOV_HUB_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001007").unwrap();
-    pub static ref CROSS_CHAIN_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000001008").unwrap();
-    pub static ref TOKEN_MANAGER_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000002000").unwrap();
-    pub static ref STAKING_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000002001").unwrap();
-    pub static ref STAKE_HUB_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000002002").unwrap();
-    pub static ref STAKE_CREDIT_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000002003").unwrap();
-    pub static ref BSC_GOVERNOR_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000002004").unwrap();
-    pub static ref GOV_TOKEN_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000002005").unwrap();
-    pub static ref BSC_TIMELOCK_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000002006").unwrap();
-    pub static ref TOKEN_RECOVER_PORTAL_CONTRACT: Address =  Address::from_str("0000000000000000000000000000000000003000").unwrap();
+    pub static ref VALIDATOR_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001000").unwrap();
+    pub static ref SLASH_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001001").unwrap();
+    pub static ref SYSTEM_REWARD_CONTRACT: Address = Address::from_str("0x0000000000000000000000000000000000001002").unwrap();
+    pub static ref LIGHT_CLIENT_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001003").unwrap();
+    pub static ref TOKEN_HUB_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001004").unwrap();
+    pub static ref RELAYER_INCENTIVIZE_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001005").unwrap();
+    pub static ref RELAYER_HUB_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001006").unwrap();
+    pub static ref GOV_HUB_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001007").unwrap();
+    pub static ref CROSS_CHAIN_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000001008").unwrap();
+    pub static ref TOKEN_MANAGER_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000002000").unwrap();
+    pub static ref STAKING_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000002001").unwrap();
+    pub static ref STAKE_HUB_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000002002").unwrap();
+    pub static ref STAKE_CREDIT_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000002003").unwrap();
+    pub static ref BSC_GOVERNOR_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000002004").unwrap();
+    pub static ref GOV_TOKEN_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000002005").unwrap();
+    pub static ref BSC_TIMELOCK_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000002006").unwrap();
+    pub static ref TOKEN_RECOVER_PORTAL_CONTRACT: Address =  Address::from_str("0x0000000000000000000000000000000000003000").unwrap();
 
     pub static ref SYSTEM_CONTRACTS: Vec<Address> = vec![
         *VALIDATOR_CONTRACT,

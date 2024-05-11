@@ -9,15 +9,9 @@
 use alloy_dyn_abi::{DynSolValue, FunctionExt, JsonAbiExt};
 use alloy_json_abi::JsonAbi;
 use alloy_rlp::Decodable;
-use bitset::BitSet;
-use blst::{
-    min_pk::{PublicKey, Signature},
-    BLST_ERROR,
-};
 use lazy_static::lazy_static;
 use lru::LruCache;
 use parking_lot::RwLock;
-use reth_provider::{HeaderProvider, ParliaSnapshotReader, ParliaSnapshotWriter};
 use secp256k1::{
     ecdsa::{RecoverableSignature, RecoveryId},
     Message, SECP256K1,
@@ -33,10 +27,7 @@ use std::{
 
 use reth_consensus::{Consensus, ConsensusError};
 use reth_consensus_common::validation::validate_4844_header_standalone;
-use reth_db::models::parlia::{
-    Snapshot, ValidatorInfo, VoteAddress, VoteAttestation, CHECKPOINT_INTERVAL,
-    MAX_ATTESTATION_EXTRA_LENGTH,
-};
+use reth_db::models::parlia::{Snapshot, ValidatorInfo, VoteAddress, VoteAttestation};
 use reth_primitives::{
     constants::EMPTY_MIX_HASH, Address, BlockNumber, Bytes, ChainSpec, GotExpected, Hardfork,
     Header, SealedBlock, SealedHeader, Transaction, TxKind, TxLegacy, B256, EMPTY_OMMER_ROOT_HASH,
@@ -52,10 +43,9 @@ pub mod contract_upgrade;
 mod feynman_fork;
 pub use feynman_fork::*;
 mod error;
-pub mod go_rng;
 pub use error::ParliaConsensusError;
-
-use go_rng::{RngSource, Shuffle};
+mod go_rng;
+pub use go_rng::{RngSource, Shuffle};
 
 const RECOVERED_PROPOSER_CACHE_NUM: usize = 4096;
 
@@ -160,7 +150,7 @@ impl Parlia {
         let mut sig_hash_header = header.clone();
         sig_hash_header.extra_data =
             Bytes::copy_from_slice(&header.extra_data[..header.extra_data.len() - EXTRA_SEAL_LEN]);
-        let message = Message::from_slice(
+        let message = Message::from_digest_slice(
             hash_with_chain_id(&sig_hash_header, self.chain_spec.chain.id()).as_slice(),
         )
         .map_err(|_| ParliaConsensusError::RecoverECDSAInnerError)?;
@@ -727,7 +717,7 @@ impl Consensus for Parlia {
         }
 
         // Check extra data
-        self.check_header_extra(header)?;
+        self.check_header_extra(header).map_err(|_|ConsensusError::InvalidHeaderExtra)?;
 
         // Ensure that the mix digest is zero as we don't have fork protection currently
         if header.mix_hash != EMPTY_MIX_HASH {

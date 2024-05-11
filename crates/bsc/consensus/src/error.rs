@@ -1,5 +1,4 @@
-use reth_consensus::ConsensusError;
-use reth_primitives::{BlockNumber, U256};
+use reth_primitives::BlockNumber;
 
 /// Parlia consensus error.
 #[derive(thiserror::Error, Debug, PartialEq, Eq, Clone)]
@@ -42,10 +41,4 @@ pub enum ParliaConsensusError {
     /// Error when encountering a recover ecdsa inner error
     #[error("recover ecdsa inner error")]
     RecoverECDSAInnerError,
-}
-
-impl From<ParliaConsensusError> for ConsensusError {
-    fn from(err: ParliaConsensusError) -> Self {
-        ConsensusError::other(err)
-    }
 }

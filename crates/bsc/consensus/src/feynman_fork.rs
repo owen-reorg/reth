@@ -11,7 +11,9 @@ pub struct ValidatorItem {
 impl Ord for ValidatorItem {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.voting_power.cmp(&other.voting_power) {
-            Ordering::Equal => self.address.cmp(&other.address),
+            // If the voting power is the same, we compare the address.
+            // Address with smaller value is considered as larger.
+            Ordering::Equal => other.address.cmp(&self.address),
             other => other,
         }
     }
@@ -64,4 +66,157 @@ pub fn get_top_validators_by_voting_power(
     }
 
     Some((e_validators, e_voting_powers, e_vote_addrs))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reth_primitives::hex;
+
+    #[test]
+    fn validator_heap() {
+        let test_cases = vec![
+            (
+                "normal case",
+                2,
+                vec![
+                    ValidatorItem {
+                        address: Address::with_last_byte(1),
+                        voting_power: U256::from(300) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x01").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(2),
+                        voting_power: U256::from(200) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x02").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(3),
+                        voting_power: U256::from(100) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x03").unwrap(),
+                    },
+                ],
+                vec![Address::with_last_byte(1), Address::with_last_byte(2)],
+            ),
+            (
+                "same voting power",
+                2,
+                vec![
+                    ValidatorItem {
+                        address: Address::with_last_byte(1),
+                        voting_power: U256::from(300) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x01").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(2),
+                        voting_power: U256::from(100) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x02").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(3),
+                        voting_power: U256::from(100) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x03").unwrap(),
+                    },
+                ],
+                vec![Address::with_last_byte(1), Address::with_last_byte(2)],
+            ),
+            (
+                "zero voting power and k > len(validators)",
+                5,
+                vec![
+                    ValidatorItem {
+                        address: Address::with_last_byte(1),
+                        voting_power: U256::from(300) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x01").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(2),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x02").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(3),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x03").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(4),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x04").unwrap(),
+                    },
+                ],
+                vec![Address::with_last_byte(1)],
+            ),
+            (
+                "zero voting power and k < len(validators)",
+                5,
+                vec![
+                    ValidatorItem {
+                        address: Address::with_last_byte(1),
+                        voting_power: U256::from(300) * U256::from(10u64.pow(10)),
+                        vote_address: hex::decode("0x01").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(2),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x02").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(3),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x03").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(4),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x04").unwrap(),
+                    },
+                ],
+                vec![Address::with_last_byte(1)],
+            ),
+            (
+                "all zero voting power",
+                2,
+                vec![
+                    ValidatorItem {
+                        address: Address::with_last_byte(1),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x01").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(2),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x02").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(3),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x03").unwrap(),
+                    },
+                    ValidatorItem {
+                        address: Address::with_last_byte(4),
+                        voting_power: U256::ZERO,
+                        vote_address: hex::decode("0x04").unwrap(),
+                    },
+                ],
+                vec![],
+            ),
+        ];
+
+        for (description, k, validators, expected) in test_cases {
+            let (eligible_validators, _, _) = get_top_validators_by_voting_power(
+                validators.iter().map(|v| v.address).collect(),
+                validators.iter().map(|v| v.voting_power).collect(),
+                validators.iter().map(|v| v.vote_address.clone()).collect(),
+                U256::from(validators.len()),
+                U256::from(k),
+            )
+            .unwrap();
+
+            assert_eq!(eligible_validators.len(), expected.len(), "case: {}", description);
+            for i in 0..expected.len() {
+                assert_eq!(eligible_validators[i], expected[i], "case: {}", description);
+            }
+        }
+    }
 }

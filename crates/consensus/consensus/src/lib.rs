@@ -261,6 +261,10 @@ pub enum ConsensusError {
     #[error("invalid mix digest")]
     InvalidMixHash,
 
+    /// Error for invalid header extra
+    #[error("invalid header extra")]
+    InvalidHeaderExtra,
+
     /// Error for a transaction that violates consensus.
     #[error(transparent)]
     InvalidTransaction(#[from] InvalidTransactionError),
