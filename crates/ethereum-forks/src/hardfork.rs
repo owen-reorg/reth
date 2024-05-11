@@ -76,6 +76,24 @@ pub enum Hardfork {
     /// Fjord: <https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/superchain-upgrades.md#fjord>
     #[cfg(feature = "optimism")]
     Fjord,
+
+    // BSC hardfork
+    Ramanujan,
+    Niels,
+    MirrorSync,
+    Bruno,
+    Euler,
+    Gibbs,
+    Nano,
+    Moran,
+    Planck,
+    Luban,
+    Plato,
+    Hertz,
+    HertzFix,
+    Kepler,
+    Feynman,
+    FeynmanFix,
 }
 
 impl Hardfork {

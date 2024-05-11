@@ -118,7 +118,8 @@ pub enum BlockExecutionError {
     /// Error when fetching latest block state.
     #[error(transparent)]
     LatestBlock(#[from] ProviderError),
-    /// Optimism Block Executor Errors
+
+    /// Optimism/Bsc Block Executor Errors
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),
 }

@@ -178,6 +178,10 @@ pub const EMPTY_TRANSACTIONS: B256 = EMPTY_ROOT_HASH;
 /// Withdrawals root of empty withdrawals set.
 pub const EMPTY_WITHDRAWALS: B256 = EMPTY_ROOT_HASH;
 
+/// Empty mix hash
+pub const EMPTY_MIX_HASH: B256 =
+    b256!("0000000000000000000000000000000000000000000000000000000000000000");
+
 /// The number of blocks to unwind during a reorg that already became a part of canonical chain.
 ///
 /// In reality, the node can end up in this particular situation very rarely. It would happen only

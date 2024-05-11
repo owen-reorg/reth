@@ -25,6 +25,7 @@ pub(crate) mod utils;
 
 use crate::{
     abstraction::table::Table,
+    models::parlia::Snapshot,
     table::DupSort,
     tables::{
         codecs::CompactU256,
@@ -377,6 +378,9 @@ tables! {
 
     /// Stores the history of client versions that have accessed the database with write privileges by unix timestamp in seconds.
     table VersionHistory<Key = u64, Value = ClientVersion>;
+
+    /// Stores the parlia snapshot data by block hash.
+    table ParliaSnapshot<Key = BlockHash, Value = Snapshot>;
 }
 
 // Alias types.

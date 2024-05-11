@@ -568,6 +568,20 @@ impl ChainSpec {
         )
     }
 
+    /// Returns `true` if this chain contains Bsc configuration.
+    #[inline]
+    pub fn is_bsc(&self) -> bool {
+        // TODO: self.chain.is_bsc()
+        self.chain.is_optimism()
+    }
+
+    /// Returns `true` if this chain is Bsc mainnet.
+    #[inline]
+    pub fn is_bsc_mainnet(&self) -> bool {
+        // TODO: self.chain == Chain::bsc_mainnet()
+        self.chain == Chain::optimism_mainnet()
+    }
+
     /// Returns `true` if this chain contains Optimism configuration.
     #[inline]
     pub fn is_optimism(&self) -> bool {

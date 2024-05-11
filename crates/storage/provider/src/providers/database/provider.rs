@@ -8,9 +8,10 @@ use crate::{
     AccountReader, BlockExecutionWriter, BlockHashReader, BlockNumReader, BlockReader, BlockWriter,
     Chain, EvmEnvProvider, HashingWriter, HeaderProvider, HeaderSyncGap, HeaderSyncGapProvider,
     HeaderSyncMode, HistoricalStateProvider, HistoryWriter, LatestStateProvider,
-    OriginalValuesKnown, ProviderError, PruneCheckpointReader, PruneCheckpointWriter,
-    StageCheckpointReader, StateProviderBox, StateWriter, StatsReader, StorageReader,
-    TransactionVariant, TransactionsProvider, TransactionsProviderExt, WithdrawalsProvider,
+    OriginalValuesKnown, ParliaSnapshotReader, ParliaSnapshotWriter, ProviderError,
+    PruneCheckpointReader, PruneCheckpointWriter, StageCheckpointReader, StateProviderBox,
+    StateWriter, StatsReader, StorageReader, TransactionVariant, TransactionsProvider,
+    TransactionsProviderExt, WithdrawalsProvider,
 };
 use itertools::{izip, Itertools};
 use reth_db::{
@@ -18,8 +19,9 @@ use reth_db::{
     cursor::{DbCursorRO, DbCursorRW, DbDupCursorRO, RangeWalker},
     database::Database,
     models::{
-        sharded_key, storage_sharded_key::StorageShardedKey, AccountBeforeTx, BlockNumberAddress,
-        ShardedKey, StoredBlockBodyIndices, StoredBlockOmmers, StoredBlockWithdrawals,
+        parlia::Snapshot, sharded_key, storage_sharded_key::StorageShardedKey, AccountBeforeTx,
+        BlockNumberAddress, ShardedKey, StoredBlockBodyIndices, StoredBlockOmmers,
+        StoredBlockWithdrawals,
     },
     table::{Table, TableRow},
     tables,
@@ -2689,6 +2691,18 @@ impl<TX: DbTx> StatsReader for DatabaseProvider<TX> {
         };
 
         Ok(db_entries + static_file_entries)
+    }
+}
+
+impl<TX: DbTx> ParliaSnapshotReader for DatabaseProvider<TX> {
+    fn get_parlia_snapshot(&self, block_hash: B256) -> ProviderResult<Option<Snapshot>> {
+        Ok(self.tx.get::<tables::ParliaSnapshot>(block_hash)?)
+    }
+}
+
+impl<TX: DbTxMut> ParliaSnapshotWriter for DatabaseProvider<TX> {
+    fn save_parlia_snapshot(&self, block_hash: B256, snapshot: Snapshot) -> ProviderResult<()> {
+        Ok(self.tx.put::<tables::ParliaSnapshot>(block_hash, snapshot)?)
     }
 }
 

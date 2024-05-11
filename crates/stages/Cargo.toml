@@ -38,6 +38,7 @@ tracing.workspace = true
 thiserror.workspace = true
 itertools.workspace = true
 rayon.workspace = true
+cfg-if = "1.0.0"
 num-traits = "0.2.15"
 tempfile = { workspace = true, optional = true }
 
@@ -45,6 +46,7 @@ tempfile = { workspace = true, optional = true }
 # reth
 reth-primitives = { workspace = true, features = ["test-utils", "arbitrary"] }
 reth-db = { workspace = true, features = ["test-utils", "mdbx"] }
+reth-evm-bsc.workspace = true
 reth-evm-ethereum.workspace = true
 reth-interfaces = { workspace = true, features = ["test-utils"] }
 reth-consensus = { workspace = true, features = ["test-utils"] }
@@ -77,6 +79,9 @@ pprof = { workspace = true, features = [
 ] }
 
 [features]
+bsc = [
+    "reth-evm-bsc/bsc",
+]
 test-utils = [
     "reth-interfaces/test-utils",
     "reth-db/test-utils",

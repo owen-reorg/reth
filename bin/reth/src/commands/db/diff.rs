@@ -8,10 +8,10 @@ use reth_db::{
     cursor::DbCursorRO, database::Database, open_db_read_only, table::Table, transaction::DbTx,
     AccountChangeSets, AccountsHistory, AccountsTrie, BlockBodyIndices, BlockOmmers,
     BlockWithdrawals, Bytecodes, CanonicalHeaders, DatabaseEnv, HashedAccounts, HashedStorages,
-    HeaderNumbers, HeaderTerminalDifficulties, Headers, PlainAccountState, PlainStorageState,
-    PruneCheckpoints, Receipts, StageCheckpointProgresses, StageCheckpoints, StorageChangeSets,
-    StoragesHistory, StoragesTrie, Tables, TransactionBlocks, TransactionHashNumbers,
-    TransactionSenders, Transactions, VersionHistory,
+    HeaderNumbers, HeaderTerminalDifficulties, Headers, ParliaSnapshot, PlainAccountState,
+    PlainStorageState, PruneCheckpoints, Receipts, StageCheckpointProgresses, StageCheckpoints,
+    StorageChangeSets, StoragesHistory, StoragesTrie, Tables, TransactionBlocks,
+    TransactionHashNumbers, TransactionSenders, Transactions, VersionHistory,
 };
 use std::{
     collections::HashMap,
@@ -153,6 +153,9 @@ impl Command {
                 }
                 Tables::VersionHistory => {
                     find_diffs::<VersionHistory>(primary_tx, secondary_tx, output_dir)?
+                }
+                Tables::ParliaSnapshot => {
+                    find_diffs::<ParliaSnapshot>(primary_tx, secondary_tx, output_dir)?
                 }
             };
         }

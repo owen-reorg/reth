@@ -14,6 +14,7 @@ pub mod accounts;
 pub mod blocks;
 pub mod client_version;
 pub mod integer_list;
+pub mod parlia;
 pub mod sharded_key;
 pub mod storage_sharded_key;
 

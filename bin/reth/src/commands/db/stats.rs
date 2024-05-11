@@ -10,7 +10,7 @@ use reth_db::{
     database::Database, mdbx, static_file::iter_static_files, AccountChangeSets, AccountsHistory,
     AccountsTrie, BlockBodyIndices, BlockOmmers, BlockWithdrawals, Bytecodes, CanonicalHeaders,
     DatabaseEnv, HashedAccounts, HashedStorages, HeaderNumbers, HeaderTerminalDifficulties,
-    Headers, PlainAccountState, PlainStorageState, PruneCheckpoints, Receipts,
+    Headers, ParliaSnapshot, PlainAccountState, PlainStorageState, PruneCheckpoints, Receipts,
     StageCheckpointProgresses, StageCheckpoints, StorageChangeSets, StoragesHistory, StoragesTrie,
     Tables, TransactionBlocks, TransactionHashNumbers, TransactionSenders, Transactions,
     VersionHistory,
@@ -359,6 +359,7 @@ impl Command {
                 Tables::TransactionSenders => viewer.get_checksum::<TransactionSenders>().unwrap(),
                 Tables::Transactions => viewer.get_checksum::<Transactions>().unwrap(),
                 Tables::VersionHistory => viewer.get_checksum::<VersionHistory>().unwrap(),
+                Tables::ParliaSnapshot => viewer.get_checksum::<ParliaSnapshot>().unwrap(),
             };
 
             // increment duration for final report

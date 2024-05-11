@@ -2,10 +2,10 @@ use crate::{
     AccountReader, BlockHashReader, BlockIdReader, BlockNumReader, BlockReader, BlockReaderIdExt,
     BlockSource, BlockchainTreePendingStateProvider, BundleStateDataProvider, CanonChainTracker,
     CanonStateNotifications, CanonStateSubscriptions, ChainSpecProvider, ChangeSetReader,
-    DatabaseProviderFactory, EvmEnvProvider, HeaderProvider, ProviderError, PruneCheckpointReader,
-    ReceiptProvider, ReceiptProviderIdExt, StageCheckpointReader, StateProviderBox,
-    StateProviderFactory, StaticFileProviderFactory, TransactionVariant, TransactionsProvider,
-    TreeViewer, WithdrawalsProvider,
+    DatabaseProviderFactory, EvmEnvProvider, HeaderProvider, ParliaSnapshotReader, ProviderError,
+    PruneCheckpointReader, ReceiptProvider, ReceiptProviderIdExt, StageCheckpointReader,
+    StateProviderBox, StateProviderFactory, StaticFileProviderFactory, TransactionVariant,
+    TransactionsProvider, TreeViewer, WithdrawalsProvider,
 };
 use reth_db::{
     database::Database,
@@ -61,6 +61,7 @@ use chain_info::ChainInfoTracker;
 
 mod consistent_view;
 pub use consistent_view::{ConsistentDbView, ConsistentViewError};
+use reth_db::models::parlia::Snapshot;
 use reth_rpc_types::engine::ForkchoiceState;
 
 /// The main type for interacting with the blockchain.
@@ -904,5 +905,14 @@ where
     /// Get basic account information.
     fn basic_account(&self, address: Address) -> ProviderResult<Option<Account>> {
         self.database.provider()?.basic_account(address)
+    }
+}
+
+impl<DB> ParliaSnapshotReader for BlockchainProvider<DB>
+where
+    DB: Database + Sync + Send,
+{
+    fn get_parlia_snapshot(&self, block_hash: B256) -> ProviderResult<Option<Snapshot>> {
+        self.database.provider()?.get_parlia_snapshot(block_hash)
     }
 }

@@ -1,0 +1,46 @@
+[package]
+name = "reth-evm-bsc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Reth
+reth-evm.workspace = true
+reth-primitives.workspace = true
+reth-revm.workspace = true
+reth-interfaces.workspace = true
+reth-provider.workspace = true
+reth-db.workspace = true
+reth-bsc-consensus.workspace = true
+
+# Optimism
+revm.workspace = true
+revm-primitives.workspace = true
+
+# misc
+thiserror.workspace = true
+tracing.workspace = true
+lazy_static = "1.4.0"
+parking_lot = "0.12.2"
+bitset = "0.1.2"
+lru = "0.12.3"
+blst = "0.3.11"
+
+[dev-dependencies]
+reth-revm = { workspace = true, features = ["test-utils"] }
+
+[features]
+bsc = [
+    "reth-bsc-consensus/bsc",
+]
+#     "reth-primitives/bsc",
+#    "reth-provider/bsc",
+#    "reth-interfaces/bsc",
+#    "revm-primitives/bsc",

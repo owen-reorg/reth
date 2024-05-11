@@ -24,6 +24,7 @@ reth-nippy-jar.workspace = true
 reth-tracing.workspace = true
 
 # codecs
+alloy-rlp = { workspace = true, features = ["arrayvec"] }
 serde = { workspace = true, default-features = false }
 parity-scale-codec = { version = "3.2.1", features = ["bytes"] }
 modular-bitfield.workspace = true
@@ -48,6 +49,7 @@ proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
 strum = { workspace = true, features = ["derive"] }
 once_cell.workspace = true
+serde_cbor = "0.11.2"
 
 [dev-dependencies]
 # reth libs with arbitrary
