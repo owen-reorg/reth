@@ -61,13 +61,13 @@ pub struct BscExecutorProvider<P, EvmConfig = BscEvmConfig> {
     chain_spec: Arc<ChainSpec>,
     evm_config: EvmConfig,
     parlia_config: ParliaConfig,
-    _marker: PhantomData<P>,
+    provider: P,
 }
 
 impl<P> BscExecutorProvider<P> {
     /// Creates a new default bsc executor provider.
-    pub fn bsc(chain_spec: Arc<ChainSpec>) -> Self {
-        Self::new(chain_spec, Default::default(), ParliaConfig::default())
+    pub fn bsc(chain_spec: Arc<ChainSpec>, provider: P) -> Self {
+        Self::new(chain_spec, Default::default(), ParliaConfig::default(), provider)
     }
 }
 
@@ -77,8 +77,9 @@ impl<P, EvmConfig> BscExecutorProvider<P, EvmConfig> {
         chain_spec: Arc<ChainSpec>,
         evm_config: EvmConfig,
         parlia_config: ParliaConfig,
+        provider: P,
     ) -> Self {
-        Self { chain_spec, evm_config, parlia_config, _marker: PhantomData::<P> }
+        Self { chain_spec, evm_config, parlia_config, provider }
     }
 }
 
@@ -102,7 +103,7 @@ where
 
 impl<P, EvmConfig> BlockExecutorProvider for BscExecutorProvider<P, EvmConfig>
 where
-    P: ParliaProvider,
+    P: ParliaProvider + Clone + std::marker::Unpin + 'static,
     EvmConfig: ConfigureEvm,
 {
     type Executor<DB: Database<Error = ProviderError>> = BscBlockExecutor<EvmConfig, DB, P>;
@@ -115,11 +116,11 @@ where
         panic!("Use `executor_with_provider_rw` instead")
     }
 
-    fn executor_with_provider_rw<DB, P>(&self, db: DB, provider: P) -> Self::Executor<DB>
+    fn executor_with_provider_rw<DB, PP>(&self, db: DB, _provider: PP) -> Self::Executor<DB>
     where
         DB: Database<Error = ProviderError>,
     {
-        self.bsc_executor(db, provider)
+        self.bsc_executor(db, self.provider.clone())
     }
 
     fn batch_executor<DB>(&self, _db: DB, _prune_modes: PruneModes) -> Self::BatchExecutor<DB>
@@ -129,16 +130,16 @@ where
         panic!("Use `batch_executor_with_provider_rw` instead")
     }
 
-    fn batch_executor_with_provider_rw<DB, P>(
+    fn batch_executor_with_provider_rw<DB, PP>(
         &self,
         db: DB,
         prune_modes: PruneModes,
-        provider: P,
+        _provider: PP,
     ) -> Self::BatchExecutor<DB>
     where
         DB: Database<Error = ProviderError>,
     {
-        let executor = self.bsc_executor(db, provider);
+        let executor = self.bsc_executor(db, self.provider.clone());
         BscBatchExecutor {
             executor,
             batch_record: BlockBatchRecord::new(prune_modes),
