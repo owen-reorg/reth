@@ -379,7 +379,7 @@ impl Parlia {
         Ok(())
     }
 
-    fn get_recently_proposal_limit(&self, header: &Header, validator_count: u64) -> u64 {
+    pub fn get_recently_proposal_limit(&self, header: &Header, validator_count: u64) -> u64 {
         if self.chain_spec.fork(Hardfork::Luban).active_at_block(header.number) {
             validator_count * 2 / 3 + 1
         } else {

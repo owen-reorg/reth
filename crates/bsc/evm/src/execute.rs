@@ -10,10 +10,9 @@ use lazy_static::lazy_static;
 use lru::LruCache;
 use parking_lot::RwLock;
 use reth_bsc_consensus::{
-    get_top_validators_by_voting_power, hash_with_chain_id, is_breathe_block,
-    is_system_transaction, Parlia, ParliaConfig, ParliaConsensusError,
-    COLLECT_ADDITIONAL_VOTES_REWARD_RATIO, DIFF_INTURN, DIFF_NOTURN, EXTRA_SEAL_LEN,
-    EXTRA_VANITY_LEN, MAX_SYSTEM_REWARD, NATURALLY_JUSTIFIED_DIST, SYSTEM_REWARD_CONTRACT,
+    get_top_validators_by_voting_power, is_breathe_block, is_system_transaction, Parlia,
+    ParliaConfig, COLLECT_ADDITIONAL_VOTES_REWARD_RATIO, DIFF_INTURN,
+    DIFF_NOTURN, MAX_SYSTEM_REWARD, NATURALLY_JUSTIFIED_DIST, SYSTEM_REWARD_CONTRACT,
     SYSTEM_REWARD_PERCENT, SYSTEM_TXS_GAS,
 };
 use reth_db::models::parlia::{
@@ -32,14 +31,13 @@ use reth_interfaces::{
 };
 use reth_primitives::{
     constants::SYSTEM_ADDRESS, Address, BlockNumber, BlockWithSenders, Bytes, ChainSpec,
-    GotExpected, Hardfork, Header, PruneModes, Receipt, Receipts, SealedHeader, Transaction,
-    TransactionSigned, TxType, Withdrawals, B256, U256,
+    GotExpected, Hardfork, Header, PruneModes, Receipt, Receipts, Transaction, TransactionSigned,
+    B256, U256,
 };
-use reth_provider::{HeaderProvider, ParliaSnapshotReader, ParliaSnapshotWriter};
+use reth_provider::ParliaProvider;
 use reth_revm::{
     batch::{BlockBatchRecord, BlockExecutorStats},
     db::states::bundle_state::BundleRetention,
-    state_change::{apply_beacon_root_contract_call, post_block_balance_increments},
     Evm, State,
 };
 use revm_primitives::{
@@ -47,6 +45,7 @@ use revm_primitives::{
     BlockEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg, ResultAndState, TransactTo,
 };
 use std::{collections::HashMap, num::NonZeroUsize, sync::Arc};
+use std::marker::PhantomData;
 use tracing::{debug, trace};
 
 const SNAP_CACHE_NUM: usize = 2048;
@@ -58,31 +57,32 @@ lazy_static! {
 
 /// Provides executors to execute regular bsc blocks
 #[derive(Debug, Clone)]
-pub struct BscExecutorProvider<EvmConfig = BscEvmConfig> {
+pub struct BscExecutorProvider<P, EvmConfig = BscEvmConfig> {
     chain_spec: Arc<ChainSpec>,
     evm_config: EvmConfig,
     parlia_config: ParliaConfig,
+    _marker: PhantomData<P>,
 }
 
-impl BscExecutorProvider {
+impl<P> BscExecutorProvider<P> {
     /// Creates a new default bsc executor provider.
     pub fn bsc(chain_spec: Arc<ChainSpec>) -> Self {
         Self::new(chain_spec, Default::default(), ParliaConfig::default())
     }
 }
 
-impl<EvmConfig> BscExecutorProvider<EvmConfig> {
+impl<P, EvmConfig> BscExecutorProvider<P, EvmConfig> {
     /// Creates a new executor provider.
     pub fn new(
         chain_spec: Arc<ChainSpec>,
         evm_config: EvmConfig,
         parlia_config: ParliaConfig,
     ) -> Self {
-        Self { chain_spec, evm_config, parlia_config }
+        Self { chain_spec, evm_config, parlia_config, _marker: PhantomData::<P> }
     }
 }
 
-impl<EvmConfig, P> BscExecutorProvider<EvmConfig>
+impl<P, EvmConfig> BscExecutorProvider<P, EvmConfig>
 where
     EvmConfig: ConfigureEvm,
 {
@@ -100,8 +100,9 @@ where
     }
 }
 
-impl<EvmConfig, P> BlockExecutorProvider for BscExecutorProvider<EvmConfig>
+impl<P, EvmConfig> BlockExecutorProvider for BscExecutorProvider<P, EvmConfig>
 where
+    P: ParliaProvider,
     EvmConfig: ConfigureEvm,
 {
     type Executor<DB: Database<Error = ProviderError>> = BscBlockExecutor<EvmConfig, DB, P>;
@@ -189,9 +190,7 @@ where
             // systemTxs should be always at the end of block.
             if self.chain_spec.is_cancun_active_at_timestamp(block.timestamp) {
                 if system_txs.len() > 0 {
-                    return Err(BlockExecutionError::Validation(
-                        BscBlockExecutionError::UnexpectedNormalTx.into(),
-                    ))
+                    return Err(BscBlockExecutionError::UnexpectedNormalTx.into())
                 }
             }
 
@@ -299,7 +298,7 @@ impl<EvmConfig, DB, P> BscBlockExecutor<EvmConfig, DB, P>
 where
     EvmConfig: ConfigureEvm,
     DB: Database<Error = ProviderError>,
-    P: HeaderProvider + ParliaSnapshotReader + ParliaSnapshotWriter,
+    P: ParliaProvider,
 {
     /// Configures a new evm configuration and block environment for the given block.
     ///
@@ -385,17 +384,14 @@ where
     }
 
     /// Apply post execution state changes, including system txs and other state change.
-    pub fn post_execution<Ext, DB>(
+    pub fn post_execution<Ext>(
         &mut self,
         block: &BlockWithSenders,
         system_txs: &mut Vec<&TransactionSigned>,
         receipts: &mut Vec<Receipt>,
         cumulative_gas_used: &mut u64,
         evm: &mut Evm<'_, Ext, &mut State<DB>>,
-    ) -> Result<(), BlockExecutionError>
-    where
-        DB: Database<Error = ProviderError>,
-    {
+    ) -> Result<(), BlockExecutionError> {
         let number = block.number;
         let validator = block.beneficiary;
         let header = &block.header;
@@ -475,9 +471,7 @@ where
         }
 
         if !system_txs.is_empty() {
-            return Err(BlockExecutionError::Validation(
-                BscBlockExecutionError::UnexpectedSystemTx.into(),
-            ))
+            return Err(BscBlockExecutionError::UnexpectedSystemTx.into())
         }
 
         Ok(())
@@ -527,7 +521,7 @@ where
         header: &Header,
         parent: &Header,
     ) -> Result<(), BlockExecutionError> {
-        let attestation = self.parlia.get_vote_attestation_from_header(header)?;
+        let attestation = self.parlia.get_vote_attestation_from_header(header).map_err(|_|BscBlockExecutionError::ProviderInnerError)?;
         if let Some(attestation) = attestation {
             if attestation.extra.len() > MAX_ATTESTATION_EXTRA_LENGTH {
                 return Err(BscBlockExecutionError::TooLargeAttestationExtraLen {
@@ -623,7 +617,7 @@ where
 
     fn verify_seal(&self, snap: &Snapshot, header: &Header) -> Result<(), BlockExecutionError> {
         let block_number = header.number;
-        let proposer = self.parlia.recover_proposer(header)?;
+        let proposer = self.parlia.recover_proposer(header).map_err(|_|BscBlockExecutionError::ProviderInnerError)?;
 
         if proposer != header.beneficiary {
             return Err(BscBlockExecutionError::WrongHeaderSigner {
@@ -641,7 +635,7 @@ where
             if *recent == proposer {
                 // Signer is among recent_proposers, only fail if the current block doesn't shift it
                 // out
-                let limit = self.get_recently_proposal_limit(header, snap.validators.len() as u64);
+                let limit = self.parlia.get_recently_proposal_limit(header, snap.validators.len() as u64);
                 if *seen > block_number - limit {
                     return Err(BscBlockExecutionError::SignerOverLimit { proposer }.into());
                 }
@@ -652,9 +646,7 @@ where
         if (is_inturn && header.difficulty != DIFF_INTURN) ||
             (!is_inturn && header.difficulty != DIFF_NOTURN)
         {
-            return Err(BscBlockExecutionError::ParliaConsensusError(
-                ParliaConsensusError::InvalidDifficulty { difficulty: header.difficulty },
-            )
+            return Err(BscBlockExecutionError::InvalidDifficulty{ difficulty: header.difficulty }
             .into());
         }
 
@@ -696,7 +688,7 @@ where
             // If we're at the genesis, snapshot the initial state.
             if block_number == 0 {
                 let (next_validators, bls_keys) =
-                    self.parse_validators_from_header(header.header())?;
+                    self.parlia.parse_validators_from_header(&header).map_err(|_|BscBlockExecutionError::ProviderInnerError)?;
                 snap = Some(Snapshot::new(
                     next_validators,
                     block_number,
@@ -720,7 +712,7 @@ where
             {
                 let hash = h.hash_slow();
                 if hash != header.parent_hash {
-                    return Err(BscBlockExecutionError::ParentUnknown { hash: block_hash });
+                    return Err(BscBlockExecutionError::ParentUnknown { hash: block_hash }.into());
                 }
                 block_number = h.number;
                 block_hash = hash;
@@ -736,9 +728,9 @@ where
         // apply skip headers
         skip_headers.reverse();
         for header in skip_headers.iter() {
-            let validator = self.recover_proposer(header)?;
-            let (next_validators, bls_keys) = self.parse_validators_from_header(header)?;
-            let attestation = self.get_vote_attestation_from_header(header)?;
+            let validator = self.parlia.recover_proposer(header).map_err(|_|BscBlockExecutionError::ProviderInnerError)?;
+            let (next_validators, bls_keys) = self.parlia.parse_validators_from_header(header).map_err(|_|BscBlockExecutionError::ProviderInnerError)?;
+            let attestation = self.parlia.get_vote_attestation_from_header(header).map_err(|_|BscBlockExecutionError::ProviderInnerError)?;
             snap = snap
                 .apply(validator, header, next_validators, bls_keys, attestation)
                 .ok_or_else(|| BscBlockExecutionError::ApplySnapshotFailed)?;
@@ -812,7 +804,7 @@ where
         }
     }
 
-    fn verify_validators<Ext, DB>(
+    fn verify_validators<Ext>(
         &self,
         header: &Header,
         evm: &mut Evm<'_, Ext, &mut State<DB>>,
@@ -859,25 +851,25 @@ where
         Ok(())
     }
 
-    fn get_current_validators<Ext, DB>(
+    fn get_current_validators<Ext>(
         &self,
         number: BlockNumber,
         evm: &mut Evm<'_, Ext, &mut State<DB>>,
     ) -> (Vec<Address>, Vec<VoteAddress>) {
         if self.parlia.chain_spec().fork(Hardfork::Luban).active_at_block(number) {
             let (to, data) = self.parlia.get_current_validators_before_luban(number);
-            let output = self.eth_call(to, data, evm)?;
+            let output = self.eth_call(to, data, evm).unwrap();
 
             (self.parlia.unpack_data_into_validator_set_before_luban(output.as_ref()), Vec::new())
         } else {
             let (to, data) = self.parlia.get_current_validators();
-            let output = self.eth_call(to, data, evm)?;
+            let output = self.eth_call(to, data, evm).unwrap();
 
             self.parlia.unpack_data_into_validator_set(output.as_ref())
         }
     }
 
-    fn init_genesis_contracts<Ext, DB>(
+    fn init_genesis_contracts<Ext>(
         &self,
         validator: Address,
         system_txs: &mut Vec<&TransactionSigned>,
@@ -893,7 +885,7 @@ where
         Ok(())
     }
 
-    fn init_feynman_contracts<Ext, DB>(
+    fn init_feynman_contracts<Ext>(
         &self,
         validator: Address,
         system_txs: &mut Vec<&TransactionSigned>,
@@ -909,7 +901,7 @@ where
         Ok(())
     }
 
-    fn slash_spoiled_validator<Ext, DB>(
+    fn slash_spoiled_validator<Ext>(
         &self,
         validator: Address,
         spoiled_val: Address,
@@ -931,7 +923,7 @@ where
         Ok(())
     }
 
-    fn distribute_incoming<Ext, DB>(
+    fn distribute_incoming<Ext>(
         &self,
         header: &Header,
         system_txs: &mut Vec<&TransactionSigned>,
@@ -969,7 +961,7 @@ where
             }
         }
 
-        let nonce = self.db_mut().basic(validator).unwrap().unwrap().nonce;
+        let nonce = evm.db_mut().basic(validator).unwrap().unwrap().nonce;
         self.transact_system_tx(
             &self.parlia.distribute_to_validator(nonce, validator, block_reward),
             validator,
@@ -982,7 +974,7 @@ where
         Ok(())
     }
 
-    fn distribute_finality_reward<Ext, DB>(
+    fn distribute_finality_reward<Ext>(
         &self,
         header: &Header,
         system_txs: &mut Vec<&TransactionSigned>,
@@ -1000,7 +992,7 @@ where
         let start = (header.number - self.parlia.epoch()).max(1);
         for height in (start..header.number).rev() {
             let header = self.get_header_by_hash(height, header.parent_hash)?;
-            if let Some(attestation) = self.get_vote_attestation_from_header(&header)? {
+            if let Some(attestation) = self.parlia.get_vote_attestation_from_header(&header).map_err(|_|BscBlockExecutionError::ProviderInnerError)? {
                 let justified_header = self.get_header_by_hash(
                     attestation.data.target_number,
                     attestation.data.target_hash,
@@ -1039,7 +1031,7 @@ where
         let weights: Vec<U256> =
             validators.iter().map(|val| accumulated_weights[val].clone()).collect();
 
-        let nonce = self.db_mut().basic(validator).unwrap().unwrap().nonce;
+        let nonce = evm.db_mut().basic(validator).unwrap().unwrap().nonce;
         self.transact_system_tx(
             &self.parlia.distribute_finality_reward(nonce, validators, weights),
             validator,
@@ -1052,7 +1044,7 @@ where
         Ok(())
     }
 
-    fn update_validator_set_v2<Ext, DB>(
+    fn update_validator_set_v2<Ext>(
         &self,
         validator: Address,
         system_txs: &mut Vec<&TransactionSigned>,
@@ -1077,7 +1069,7 @@ where
             total_length,
             max_elected_validators,
         )
-        .ok_or(Err(BscBlockExecutionError::GetTopValidatorsFailed.into()))?;
+        .ok_or_else(||BscBlockExecutionError::GetTopValidatorsFailed)?;
 
         let nonce = evm.db_mut().basic(validator).unwrap().unwrap().nonce;
         self.transact_system_tx(
@@ -1097,7 +1089,7 @@ where
         Ok(())
     }
 
-    fn eth_call<Ext, DB>(
+    fn eth_call<Ext>(
         &self,
         to: Address,
         data: Bytes,
@@ -1138,7 +1130,7 @@ where
         result.output().ok_or_else(|| BscBlockExecutionError::EthCallFailed.into())
     }
 
-    fn transact_system_tx<Ext, DB>(
+    fn transact_system_tx<Ext>(
         &self,
         transaction: &Transaction,
         sender: Address,
@@ -1202,7 +1194,6 @@ impl<EvmConfig, DB, P> Executor<DB> for BscBlockExecutor<EvmConfig, DB, P>
 where
     EvmConfig: ConfigureEvm,
     DB: Database<Error = ProviderError>,
-    P: HeaderProvider + ParliaSnapshotReader + ParliaSnapshotWriter,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
     type Output = BlockExecutionOutput<Receipt>;
@@ -1255,7 +1246,6 @@ impl<EvmConfig, DB, P> BatchExecutor<DB> for BscBatchExecutor<EvmConfig, DB, P>
 where
     EvmConfig: ConfigureEvm,
     DB: Database<Error = ProviderError>,
-    P: HeaderProvider + ParliaSnapshotReader + ParliaSnapshotWriter,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
     type Output = BatchBlockExecutionOutput;
@@ -1295,5 +1285,40 @@ where
 
     fn size_hint(&self) -> Option<usize> {
         Some(self.executor.state.bundle_state.size_hint())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use blst::min_pk::{PublicKey, Signature};
+    use reth_db::models::parlia::{VoteAddress, VoteData, VoteSignature};
+    use reth_primitives::{b256, hex};
+
+    #[test]
+    fn verify_vote_attestation() {
+        let vote_data = VoteData {
+            source_number: 1,
+            source_hash: b256!("0000000000000000000000000000000000000000000000000000000000000001"),
+            target_number: 2,
+            target_hash: b256!("0000000000000000000000000000000000000000000000000000000000000002"),
+        };
+
+        let vote_addrs = vec![
+            VoteAddress::from_slice(hex::decode("0x92134f208bc32515409e3e91e89691e2800724d6b15e667cfe11652c2daf77d3494b5d216e2ce5794cc253a6395f707d").unwrap().as_slice()),
+            VoteAddress::from_slice(hex::decode("0xb0c7b88a54614ec9a5d5ab487db071464364a599900928a10fb1237b44478412583ea062e6d03fd0a8334f539ded9302").unwrap().as_slice()),
+            VoteAddress::from_slice(hex::decode("0xb3d050e2cd6ce18fb45939d3406ae5904d1bbbdca1e72a73307a8c038af0e0d382c1614724cd1fe0dabcff82f3ff7d91").unwrap().as_slice()),
+        ];
+
+        let agg_signature = VoteSignature::from_slice(hex::decode("0x8b4aa0952e95b829596e5fbfe936195ba17cb21c83e1e69ac295ca166ed270e5ceb0cc285d51480288b6f9be2852ca7a1151364cbad69fafdbda8844189927ce0684ae5b4b0b8b42dbf1bca0957645f8dc53823554cc87d4e8adfa28d1dfec53").unwrap().as_slice());
+
+        let vote_addrs: Vec<PublicKey> =
+            vote_addrs.iter().map(|addr| PublicKey::from_bytes(addr.as_slice()).unwrap()).collect();
+        let vote_addrs: Vec<&PublicKey> = vote_addrs.iter().collect();
+
+        let sig = Signature::from_bytes(&agg_signature[..]).unwrap();
+        let err =
+            sig.aggregate_verify(true, &[vote_data.hash().as_slice()], &[], &vote_addrs, true);
+
+        println!("{:?}", err);
     }
 }
